@@ -24,5 +24,6 @@ public class Coronacraft {
 
     @Listener
     public void onServerStart(GameStartedServerEvent event) {
+        logger.info("Coronacraft has been loaded!");
     }
 }

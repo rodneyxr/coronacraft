@@ -1,5 +1,6 @@
 .gradle
 /build/
+/server
 
 # Ignore Gradle GUI config
 gradle-app.setting
