@@ -13,6 +13,7 @@ import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @Plugin(
@@ -29,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 public class Coronacraft {
 
     public static int INFECTION_DISTANCE = 6;
+    public static Random RNG = new Random();
 
     // Where all the entities that we track are stored
     public static CoronaEntityBank BANK;
@@ -82,8 +84,26 @@ public class Coronacraft {
                     Player hostPlayer = host.getPlayerOrNull();
                     Player otherPlayer = other.getPlayerOrNull();
 
-                    // Infect the other entity
-                    other.infect(CoronaLevel.SEVERE); // TODO: RNG for CoronaLevel
+                    // Calculate RNG to infect the other entity
+                    int chance = Coronacraft.RNG.nextInt(100);
+                    if (chance < 46)
+                        continue;
+
+                    // Calculate RNG for corona level
+                    chance = Coronacraft.RNG.nextInt(100);
+                    // TODO: Chance for pre-existing condition
+                    CoronaLevel level;
+                    if (chance < 80) {
+                        // 80% mild
+                        level = CoronaLevel.MILD;
+                    } else if (chance < 95) {
+                        // 15% severe
+                        level = CoronaLevel.SEVERE;
+                    } else {
+                        // 5% critical
+                        level = CoronaLevel.CRITICAL;
+                    }
+                    other.infect(level);
 
                     if (hostPlayer != null) {
                         if (other.isPlayer()) {
