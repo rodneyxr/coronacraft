@@ -1,24 +1,18 @@
 package io.github.rodneyxr.coronacraft;
 
 import com.google.inject.Inject;
-import com.google.inject.internal.cglib.core.$KeyFactory;
 import org.slf4j.Logger;
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.data.key.Keys;
-import org.spongepowered.api.data.type.Careers;
 import org.spongepowered.api.entity.Entity;
-import org.spongepowered.api.entity.EntityTypes;
 import org.spongepowered.api.entity.living.player.Player;
 import org.spongepowered.api.event.Listener;
 import org.spongepowered.api.event.game.state.GameInitializationEvent;
-import org.spongepowered.api.event.game.state.GameStartedServerEvent;
 import org.spongepowered.api.event.network.ClientConnectionEvent;
 import org.spongepowered.api.plugin.Plugin;
 import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 
-import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
 @Plugin(
@@ -34,7 +28,10 @@ import java.util.concurrent.TimeUnit;
 )
 public class Coronacraft {
 
-    public static int INFECTION_DISTANCE = 10;
+    public static int INFECTION_DISTANCE = 6;
+
+    // Where all the entities that we track are stored
+    public static CoronaEntityBank BANK;
 
     @Inject
     private Logger logger;
@@ -42,25 +39,15 @@ public class Coronacraft {
     @Listener
     public void onServerInit(GameInitializationEvent event) {
         Sponge.getEventManager().registerListeners(this, new EventListeners());
+        BANK = new CoronaEntityBank();
     }
-
-    @Listener
-    public void onServerStart(GameStartedServerEvent event) {
-        logger.info("Coronacraft has been loaded!");
-    }
-
-//    @Listener
-//    public void onInit(GameInitializationEvent event) {
-//    }
 
     @Listener
     public void onJoin(ClientConnectionEvent.Join e) {
         Player player = e.getTargetEntity();
         if (player.getName().equalsIgnoreCase("rodneyxr")) {
-            // TODO: support infected key
-            logger.info("" + player.supports(CoronaKeys.INFECTED));
-            player.offer(CoronaKeys.INFECTED, true);
-            Sponge.getServer().getBroadcastChannel().send(Text.of(player.getName() + " has been infected with COVID-19."));
+            CoronaEntity entity = BANK.getOrCreate(player);
+            entity.infect(CoronaLevel.MILD);
         }
     }
 
@@ -68,40 +55,54 @@ public class Coronacraft {
     public void onGameInit(GameInitializationEvent event) {
         Task coronaTask = Task.builder().execute(() -> {
 //          Sponge.getServer().getBroadcastChannel().send(Text.of("Checking for covid-19 in players..."));
-            Collection<Player> players = Sponge.getServer().getOnlinePlayers();
-            for (Player p : players) {
-                boolean playerInfected = p.get(CoronaKeys.INFECTED).orElse(false);
-//                logger.info(String.format("%s: %s", p.getName(), playerInfected));
-
-                // If the player is not infected, they cannot infect anybody
-                if (!playerInfected)
+            for (CoronaEntity host : BANK.getAll()) {
+                // Skip if host is not a player or villager
+                if (!host.isPlayer() && !host.isVillager())
                     continue;
 
-                for (Entity entity : p.getNearbyEntities(INFECTION_DISTANCE)) {
-                    // Skip if p is the player itself
-                    if (p == entity)
+                // If the player is not infected, they cannot infect anybody
+                if (!host.isInfected())
+                    continue;
+
+                for (Entity otherEntity : host.getEntity().getNearbyEntities(INFECTION_DISTANCE)) {
+                    CoronaEntity other = BANK.getOrCreate(otherEntity);
+
+                    // If the host is not a player or a villager, they cannot be infected
+                    if (!other.isPlayer() && !other.isVillager())
                         continue;
 
-                    // Get infection status of other entity
-                    boolean otherInfected = entity.get(CoronaKeys.INFECTED).orElse(false);
+                    // Skip if entity is the player itself
+                    if (host.getEntity() == otherEntity)
+                        continue;
 
                     // If other entity is infected, skip since they cannot get infected again
-                    if (otherInfected)
+                    if (other.isInfected())
                         continue;
 
-                    if (entity instanceof Player) {
-                        Player other = (Player) entity;
-                        // TODO: RNG
-                        // Notify the player that they infected somebody
-                        // DEBUG: p.sendMessage(Text.of(String.format("You infected: %s", other.getName())));
+                    Player hostPlayer = host.getPlayerOrNull();
+                    Player otherPlayer = other.getPlayerOrNull();
 
-                        // Notify the other player that they were infected
-                        other.offer(CoronaKeys.INFECTED, true);
-                        other.sendMessage(Text.of(TextColors.RED, String.format("You were infected by: %s", p.getName())));
-                    } else if (entity.getType().equals(EntityTypes.VILLAGER)) {
-                        // This is a villager
-                        // TODO: infect villagers
-                        p.sendMessage(Text.of(TextColors.DARK_RED, "You cannot infect villagers yet!"));
+                    // Infect the other entity
+                    other.infect(CoronaLevel.SEVERE); // TODO: RNG for CoronaLevel
+
+                    if (hostPlayer != null) {
+                        if (other.isPlayer()) {
+                            // Notify the host that they infected somebody
+                            hostPlayer.sendMessage(Text.of(TextColors.DARK_GRAY, "You infected: " + otherPlayer.getName()));
+                        } else if (other.isVillager()) {
+                            // Notify the host that they have infected a villager
+                            hostPlayer.sendMessage(Text.of(TextColors.DARK_GRAY, "You infected a villager!"));
+                        }
+                    }
+
+                    if (otherPlayer != null) {
+                        if (hostPlayer != null) {
+                            // Notify the other player that they were infected by another player
+                            otherPlayer.sendMessage(Text.of(TextColors.RED, "You were infected by: " + hostPlayer.getName()));
+                        } else if (host.isVillager()) {
+                            // Notify the other player that they were infected by a villager
+                            otherPlayer.sendMessage(Text.of(TextColors.RED, "You were infected by a villager!"));
+                        }
                     }
                 }
             }
