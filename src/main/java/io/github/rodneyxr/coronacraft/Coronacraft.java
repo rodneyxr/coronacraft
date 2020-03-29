@@ -53,6 +53,10 @@ public class Coronacraft {
         }
     }
 
+    public void healthCheck(){
+
+    }
+
     @Listener
     public void onGameInit(GameInitializationEvent event) {
         Task coronaTask = Task.builder().execute(() -> {
@@ -63,8 +67,11 @@ public class Coronacraft {
                     continue;
 
                 // If the player is not infected, they cannot infect anybody
-                if (!host.isInfected())
-                    continue;
+                if (!host.isInfected()) {
+                    continue;}
+//                } else {
+//                    host.checkInfectedHealth();
+//                }
 
                 for (Entity otherEntity : host.getEntity().getNearbyEntities(INFECTION_DISTANCE)) {
                     CoronaEntity other = BANK.getOrCreate(otherEntity);
