@@ -13,6 +13,10 @@ public class CoronaEntityBank {
         entityMap = new ConcurrentHashMap<>();
     }
 
+    public CoronaEntity getOrNull(Entity entity) {
+        return entityMap.getOrDefault(entity.getUniqueId(), null);
+    }
+
     public CoronaEntity getOrCreate(Entity entity) {
         CoronaEntity coronaEntity = entityMap.getOrDefault(entity.getUniqueId(), null);
         if (coronaEntity == null) {
@@ -20,6 +24,13 @@ public class CoronaEntityBank {
             entityMap.put(entity.getUniqueId(), coronaEntity);
         }
         return coronaEntity;
+    }
+
+    public void remove(Entity entity) {
+        CoronaEntity coronaEntity = getOrNull(entity);
+        if (coronaEntity != null) {
+            entityMap.remove(entity.getUniqueId());
+        }
     }
 
     public void put(CoronaEntity entity) {

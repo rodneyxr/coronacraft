@@ -17,32 +17,47 @@ public class CoronaEntity {
     private Entity entity;
 
     // Attributes
-    private boolean isInfected;
+    private CoronaLevel coronaLevel;
+    private boolean hasPreExitingCondition;
 
     public CoronaEntity(Entity entity) {
         this.entity = entity;
-        this.setInfected(false);
+        this.coronaLevel = CoronaLevel.NOT_INFECTED;
+        int chance = Coronacraft.RNG.nextInt(100);
+        if (chance < 25)
+            this.hasPreExitingCondition = true;
+    }
+
+    public boolean hasPreExitingCondition() {
+        return this.hasPreExitingCondition;
     }
 
     public boolean isInfected() {
-        return isInfected;
+        return coronaLevel != CoronaLevel.NOT_INFECTED;
     }
 
-    public void setInfected(boolean isInfected) {
-        this.isInfected = isInfected;
+    public CoronaLevel getCoronaLevel() {
+        return coronaLevel;
+    }
+
+    public void cure() {
+        this.coronaLevel = CoronaLevel.NOT_INFECTED;
+        entity.tryOffer(Keys.POTION_EFFECTS, new ArrayList<>());
     }
 
     public void infect(CoronaLevel level) {
-        this.setInfected(true);
+        if (level == CoronaLevel.NOT_INFECTED)
+            return;
+        this.coronaLevel = level;
         PotionEffect coronaVirus = PotionEffect.builder()
                 .duration(14 * 24000) // 14 minecraft days
                 .amplifier(level.value)
-                .particles(false)
+                .particles(true)
                 .potionType(PotionEffectTypes.POISON)
                 .build();
         List<PotionEffect> potionEffects = entity.getOrElse(Keys.POTION_EFFECTS, new ArrayList<>(1));
         potionEffects.add(coronaVirus);
-        entity.offer(Keys.POTION_EFFECTS, potionEffects);
+        entity.tryOffer(Keys.POTION_EFFECTS, potionEffects);
 
         // Notify the server if this was a player
         if (isPlayer()) {

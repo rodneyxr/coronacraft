@@ -13,6 +13,7 @@ import org.spongepowered.api.scheduler.Task;
 import org.spongepowered.api.text.Text;
 import org.spongepowered.api.text.format.TextColors;
 
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 @Plugin(
@@ -29,30 +30,19 @@ import java.util.concurrent.TimeUnit;
 public class Coronacraft {
 
     public static int INFECTION_DISTANCE = 6;
+    public static Random RNG = new Random();
 
     // Where all the entities that we track are stored
     public static CoronaEntityBank BANK;
 
     @Inject
-    private Logger logger;
+    public static Logger logger;
 
     @Listener
     public void onServerInit(GameInitializationEvent event) {
         Sponge.getEventManager().registerListeners(this, new EventListeners());
         BANK = new CoronaEntityBank();
-    }
 
-    @Listener
-    public void onJoin(ClientConnectionEvent.Join e) {
-        Player player = e.getTargetEntity();
-        if (player.getName().equalsIgnoreCase("rodneyxr")) {
-            CoronaEntity entity = BANK.getOrCreate(player);
-            entity.infect(CoronaLevel.MILD);
-        }
-    }
-
-    @Listener
-    public void onGameInit(GameInitializationEvent event) {
         Task coronaTask = Task.builder().execute(() -> {
 //          Sponge.getServer().getBroadcastChannel().send(Text.of("Checking for covid-19 in players..."));
             for (CoronaEntity host : BANK.getAll()) {
@@ -61,8 +51,9 @@ public class Coronacraft {
                     continue;
 
                 // If the player is not infected, they cannot infect anybody
-                if (!host.isInfected())
+                if (!host.isInfected()) {
                     continue;
+                }
 
                 for (Entity otherEntity : host.getEntity().getNearbyEntities(INFECTION_DISTANCE)) {
                     CoronaEntity other = BANK.getOrCreate(otherEntity);
@@ -82,8 +73,28 @@ public class Coronacraft {
                     Player hostPlayer = host.getPlayerOrNull();
                     Player otherPlayer = other.getPlayerOrNull();
 
-                    // Infect the other entity
-                    other.infect(CoronaLevel.SEVERE); // TODO: RNG for CoronaLevel
+                    // Calculate RNG to infect the other entity
+                    int chance = Coronacraft.RNG.nextInt(100);
+                    if (chance < 45)
+                        continue;
+
+                    // Calculate RNG for corona level
+                    chance = Coronacraft.RNG.nextInt(100);
+                    // Increase probability for pre-existing condition
+                    if (other.hasPreExitingCondition())
+                        chance += 25;
+                    CoronaLevel level;
+                    if (chance < 80) {
+                        // 80% mild
+                        level = CoronaLevel.MILD;
+                    } else if (chance < 95) {
+                        // 15% severe
+                        level = CoronaLevel.SEVERE;
+                    } else {
+                        // 5% critical
+                        level = CoronaLevel.CRITICAL;
+                    }
+                    other.infect(level);
 
                     if (hostPlayer != null) {
                         if (other.isPlayer()) {
@@ -109,9 +120,22 @@ public class Coronacraft {
         })
                 .async()
                 .delay(1, TimeUnit.SECONDS)
-                .interval(5, TimeUnit.SECONDS)
+                .interval(30, TimeUnit.SECONDS)
                 .name("COVID-19 Scan").submit(this);
     }
 
+    @Listener
+    public void onJoin(ClientConnectionEvent.Join e) {
+        Player player = e.getTargetEntity();
+        CoronaEntity coronaEntity = BANK.getOrNull(player);
+        if (coronaEntity != null) {
+            BANK.remove(player);
+        }
+
+        if (player.getName().equalsIgnoreCase("rodneyxr")) {
+            CoronaEntity entity = BANK.getOrCreate(player);
+            entity.infect(CoronaLevel.MILD);
+        }
+    }
 
 }
