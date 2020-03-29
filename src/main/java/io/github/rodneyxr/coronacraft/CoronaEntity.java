@@ -1,54 +1,54 @@
 package io.github.rodneyxr.coronacraft;
 
 import org.spongepowered.api.Sponge;
-import org.spongepowered.api.data.key.Key;
 import org.spongepowered.api.data.key.Keys;
-import org.spongepowered.api.data.manipulator.mutable.entity.HealthData;
 import org.spongepowered.api.effect.potion.PotionEffect;
 import org.spongepowered.api.effect.potion.PotionEffectTypes;
 import org.spongepowered.api.entity.Entity;
 import org.spongepowered.api.entity.EntityTypes;
 import org.spongepowered.api.entity.living.player.Player;
-import org.spongepowered.api.event.cause.entity.damage.source.DamageSource;
-import org.spongepowered.api.event.cause.entity.damage.source.DamageSources;
 import org.spongepowered.api.text.Text;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 
 public class CoronaEntity {
     private Entity entity;
 
     // Attributes
-    private boolean isInfected;
+    private CoronaLevel coronaLevel;
     private boolean hasPreExitingCondition;
 
     public CoronaEntity(Entity entity) {
         this.entity = entity;
-        this.setInfected(false);
+        this.coronaLevel = CoronaLevel.NOT_INFECTED;
         int chance = Coronacraft.RNG.nextInt(100);
         if (chance < 25)
             this.hasPreExitingCondition = true;
     }
 
+    public boolean hasPreExitingCondition() {
+        return this.hasPreExitingCondition;
+    }
+
     public boolean isInfected() {
-        return isInfected;
+        return coronaLevel != CoronaLevel.NOT_INFECTED;
     }
 
-    public void setInfected(boolean isInfected) {
-        this.isInfected = isInfected;
+    public CoronaLevel getCoronaLevel() {
+        return coronaLevel;
     }
 
-    public void checkInfectedHealth(){
-        double currentHP = entity.get(Keys.HEALTH).orElse(0.0);
-        if (currentHP <= 1)
-            entity.damage(2.0, DamageSources.FIRE_TICK);
+    public void cure() {
+        this.coronaLevel = CoronaLevel.NOT_INFECTED;
+        entity.tryOffer(Keys.POTION_EFFECTS, new ArrayList<>());
     }
 
     public void infect(CoronaLevel level) {
-        this.setInfected(true);
+        if (level == CoronaLevel.NOT_INFECTED)
+            return;
+        this.coronaLevel = level;
         PotionEffect coronaVirus = PotionEffect.builder()
                 .duration(14 * 24000) // 14 minecraft days
                 .amplifier(level.value)

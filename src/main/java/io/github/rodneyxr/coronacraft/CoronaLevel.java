@@ -1,6 +1,7 @@
 package io.github.rodneyxr.coronacraft;
 
 public enum CoronaLevel {
+    NOT_INFECTED(-1),
     MILD(0),
     SEVERE(1),
     CRITICAL(4);
@@ -22,7 +23,7 @@ public enum CoronaLevel {
             case 4:
                 return "critical";
             default:
-                return "unknown";
+                return "non-existent";
         }
     }
 }

@@ -36,29 +36,13 @@ public class Coronacraft {
     public static CoronaEntityBank BANK;
 
     @Inject
-    private Logger logger;
+    public static Logger logger;
 
     @Listener
     public void onServerInit(GameInitializationEvent event) {
         Sponge.getEventManager().registerListeners(this, new EventListeners());
         BANK = new CoronaEntityBank();
-    }
 
-    @Listener
-    public void onJoin(ClientConnectionEvent.Join e) {
-        Player player = e.getTargetEntity();
-        if (player.getName().equalsIgnoreCase("rodneyxr")) {
-            CoronaEntity entity = BANK.getOrCreate(player);
-            entity.infect(CoronaLevel.MILD);
-        }
-    }
-
-    public void healthCheck(){
-
-    }
-
-    @Listener
-    public void onGameInit(GameInitializationEvent event) {
         Task coronaTask = Task.builder().execute(() -> {
 //          Sponge.getServer().getBroadcastChannel().send(Text.of("Checking for covid-19 in players..."));
             for (CoronaEntity host : BANK.getAll()) {
@@ -68,10 +52,8 @@ public class Coronacraft {
 
                 // If the player is not infected, they cannot infect anybody
                 if (!host.isInfected()) {
-                    continue;}
-//                } else {
-//                    host.checkInfectedHealth();
-//                }
+                    continue;
+                }
 
                 for (Entity otherEntity : host.getEntity().getNearbyEntities(INFECTION_DISTANCE)) {
                     CoronaEntity other = BANK.getOrCreate(otherEntity);
@@ -93,12 +75,14 @@ public class Coronacraft {
 
                     // Calculate RNG to infect the other entity
                     int chance = Coronacraft.RNG.nextInt(100);
-                    if (chance < 46)
+                    if (chance < 45)
                         continue;
 
                     // Calculate RNG for corona level
                     chance = Coronacraft.RNG.nextInt(100);
-                    // TODO: Chance for pre-existing condition
+                    // Increase probability for pre-existing condition
+                    if (other.hasPreExitingCondition())
+                        chance += 25;
                     CoronaLevel level;
                     if (chance < 80) {
                         // 80% mild
@@ -136,9 +120,22 @@ public class Coronacraft {
         })
                 .async()
                 .delay(1, TimeUnit.SECONDS)
-                .interval(5, TimeUnit.SECONDS)
+                .interval(30, TimeUnit.SECONDS)
                 .name("COVID-19 Scan").submit(this);
     }
 
+    @Listener
+    public void onJoin(ClientConnectionEvent.Join e) {
+        Player player = e.getTargetEntity();
+        CoronaEntity coronaEntity = BANK.getOrNull(player);
+        if (coronaEntity != null) {
+            BANK.remove(player);
+        }
+
+        if (player.getName().equalsIgnoreCase("rodneyxr")) {
+            CoronaEntity entity = BANK.getOrCreate(player);
+            entity.infect(CoronaLevel.MILD);
+        }
+    }
 
 }
